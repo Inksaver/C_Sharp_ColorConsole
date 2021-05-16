@@ -170,7 +170,7 @@ namespace ColorConsole
             string userInput = UI.InputBox("s", "string", "Input Box Demo",
                                             "~white~What is your opinion of this Input Box demonstration",
                                             "Type your comment", ">_", "red","black", 60, 1, 50);
-            UI.Print($"Your opinion was:\n{userInput}");
+            UI.ColorPrint($"Your opinion was:\n{userInput}");
             UI.DisplayMessage("", true, false);
         }
         static void GridDemo()

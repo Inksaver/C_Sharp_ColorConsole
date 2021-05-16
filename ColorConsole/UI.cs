@@ -79,8 +79,6 @@ namespace ColorConsole
         #region public variables
         public static int windowWidth = Console.WindowWidth - 1; // set to 80 + 1 to allow for 80 cols to display without overflow to next line
         public static int windowHeight = Console.WindowHeight;
-        public static string back = "BLACKBG";      // default background colour
-        public static string fore = "WHITE";        // default foreground colour
 
         /* Character set used in old DOS programs to draw lines and boxes
           ┌───────┬───────┐   ╔═════╦═════╗ 
@@ -99,10 +97,6 @@ namespace ColorConsole
          static readonly List<string> dSymbolsBody = new List<string>    { "║", " ", "║", "║" };
          static readonly List<string> dSymbolsMid = new List<string>     { "╠", "═", "╣", "╬" };
 
-        private readonly static List<string> colorList = new List<string> { "BLACK", "WHITE", "GREY", "GRAY", "RED", "GREEN", "YELLOW", "BLUE", "MAGENTA", "CYAN",
-                                                                   "DGREY", "DGRAY", "DRED", "DGREEN", "DYELLOW", "DBLUE", "DMAGENTA", "DCYAN",
-                                                                   "BLACKBG", "WHITEBG", "GREYBG", "GRAYBG", "REDBG", "GREENBG", "YELLOWBG", "BLUEBG", "MAGENTABG", "CYANBG",
-                                                                   "DGREYBG", "DGRAYBG", "DREDBG", "DGREENBG", "DYELLOWBG", "DBLUEBG", "DMAGENTABG", "DCYANBG"};
         #endregion
         #region static constructor
         static UI() 
@@ -112,7 +106,6 @@ namespace ColorConsole
         }
         #endregion
         #region Core functions
-        
         public static int AddLines(int numLines = 25, string foreColor = "WHITE", string backColor = "BLACKBG") //default 25 lines if not given
         {
             /// Adds numLines blank lines in specified or default colour ///
@@ -129,7 +122,7 @@ namespace ColorConsole
         }
         public static int AddLines(int leaveLines, int currentLines, string foreColor = "WHITE", string backColor = "BLACKBG") 
         {
-            /// Adds blank lines until windowHeight - leaveLines in specified or default colour ///
+            /// overload 1: Adds blank lines until windowHeight - leaveLines in specified or default colour ///
             ValidateColors(ref foreColor, ref backColor);
             string blank = "".PadRight(windowWidth); //string of spaces across entire width of Console
             int numLines = windowHeight - currentLines - leaveLines;
@@ -146,11 +139,11 @@ namespace ColorConsole
         {
             /// Allows use of different character to separate colour tags. Default is ~ ///
             sep = value.Substring(0, 1);    // if user supplies more than 1 character, use the first only. Stored as string
-            Initialise(true);     //re-initialise to make use of new character
+            Initialise(true);               //re-initialise to make use of new character
         }
         public static void Clear()
         {
-            /// Does what it says on the tin. (Allows calls from other classes not involved with UI) ///
+            /// Clears the Console (Allows calls from other classes not involved with UI) ///
             Console.Clear();
         }
         public static int ColorPrint(string value, bool newline = true, bool reset = true)
@@ -161,7 +154,8 @@ namespace ColorConsole
 
             //  example value = "~RED~This is a line of red text"                      
             int numLines = 0;
-            List<string> lineParts = SplitClean(value, sep[0]); //{'RED', 'This is a line of red text'} 
+            // SplitClean returns a List<string> and removes empty items
+            List<string> lineParts = SplitClean(value, sep[0]); // = {'RED', 'This is a line of red text'} 
             foreach (string part in lineParts)
             {
                 if (colors.ContainsKey(part.ToUpper())) // is 'RED' in the colors dictionary?
@@ -197,7 +191,7 @@ namespace ColorConsole
         {
             /// show user message or default, either wait for 2 secs, or ask user to press enter ///
             ValidateColors(ref foreColor, ref backColor);
-            if (useTimer)
+            if (useTimer) //pause for delay mS
             {
                 if (message != string.Empty)
                 {
@@ -205,7 +199,7 @@ namespace ColorConsole
                     Thread.Sleep(delay);
                 }
             }
-            if (useInput)
+            if (useInput) // wait for Enter key
             {
                 if (message == string.Empty) message = "Press Enter to continue";
                 else message = $"{foreColor}{backColor}{message}";
@@ -216,21 +210,17 @@ namespace ColorConsole
         {
             /// show user message or default, either wait for 2 secs, or ask user to press enter ///
             ValidateColors(ref foreColor, ref backColor);
-            if (useTimer)
+            foreach (string message in messages)
             {
-                foreach (string message in messages)
-                {
-                    ColorPrint($"{foreColor}{backColor}{message}");
-                }
+                ColorPrint($"{foreColor}{backColor}{message}");
             }
-            if (useTimer) Thread.Sleep(delay);
+            if (useTimer) Thread.Sleep(delay); //pause for delay mS
             if (useInput) Input("Press Enter to continue", "...", WHITE, BLACK);
-        }
-        
+        } 
         public static int DrawBoxBody(string style, string text, string boxAlign, string foreColor, string backColor,
                                       string textColor = "WHITE", string textBackColor = "BLACKBG", string textAlign = "left", int width = 0)
         {
-            /// print out single line body section of a box with text / spaces "║  text  ║"  ///
+            /// print out single line body section of a box with text and/or spaces: "║  text  ║"
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
             ValidateColors(ref textColor, ref textBackColor);
@@ -283,8 +273,8 @@ namespace ColorConsole
             string output;
             if (width == windowWidth)
             {
-                output = PadString("", width, s[1], "left");                // -2 to allow for start/end margin chars
-                output = $"{foreColor}{backColor}{output}";                     //eg "~WHITE~~BLACKBG~════════════════════"
+                output = PadString("", width, s[1], "left");          // -2 to allow for start/end margin chars
+                output = $"{foreColor}{backColor}{output}";           //eg "~WHITE~~BLACKBG~════════════════════"
             }
             else
             {
@@ -298,8 +288,9 @@ namespace ColorConsole
         }
         public static int DrawMultiBoxBody(List<string> styles, List<int> sizes, List<string> foreColors, List<string> backColors, List<string> textLines, List<string> alignments, int padding = 0)
         {
-            /// print out single line mid section of multiple boxes with or without text ///
-            if(styles.Count != sizes.Count && styles.Count != foreColors.Count && styles.Count != backColors.Count && styles.Count != alignments.Count)
+            /// print out single line mid section of multiple boxes with or without text
+            /// ║  box 0  ║ ║   box 1   ║ │  box 2  │
+            if (styles.Count != sizes.Count && styles.Count != foreColors.Count && styles.Count != backColors.Count && styles.Count != alignments.Count)
             {
                 throw new MatchingTagsException("All supplied parameter lists must have the same number of items");
             }
@@ -324,30 +315,27 @@ namespace ColorConsole
             }
             List<string> s;
             List<string> outputs = new List<string>();
-            // calculate each box size from sizes: {15, 40, 25} 
-            //int numBoxes;
-            //int width;
             int boxLength;
             string output;
             for (int i = 0; i < sizes.Count; i++)
             {
                 // size examples {15, 40, 25} = 80 cols
                 s = SelectCharacterList("body", styles[i]);
-                if (i < sizes.Count - 1) boxLength = sizes[i] - padding - 2;     // -2 as is box edge, and characters will be added both sides
+                if (i < sizes.Count - 1) boxLength = sizes[i] - padding - 2;    // -2 as is box edge, and characters will be added both sides
                 else boxLength = sizes[i] - 2;
-                string lSide = s[0];                                                // start with left side char
-                string rSide = s[3];                                                // end with right side char
+                string lSide = s[0];                                            // start with left side char
+                string rSide = s[3];                                            // end with right side char
                 //check length of string
                 output = textLines[i];
                 int colorTagSpaces = FormatColorTags(ref output, colorTagList: out List<string> colorTagList);
                 if (output.Length > sizes[i] - 2 + colorTagSpaces) output = output.Substring(0, sizes[i] - 2 + colorTagSpaces);
                 output = PadString(output, boxLength, " ", alignments[i]);
                 output = $"{foreColors[i]}{backColors[i]}{lSide}{output}{foreColors[i]}{backColors[i]}{rSide}";
-                outputs.Add(output);                                  // create new list item with completed string
+                outputs.Add(output);                                            // create new list item with completed string
             }
 
             output = "";
-            foreach (string line in outputs)                         // concatenate all box outlines in outputs
+            foreach (string line in outputs)                                    // concatenate all box outlines in outputs
             {
                 output += line;
             }
@@ -357,7 +345,8 @@ namespace ColorConsole
         }
         public static int DrawMultiBoxOutline(List<string> styles, string part, List<int> sizes, List<string> foreColors, List<string> backColors, int padding = 0)
         {
-            /// Draw the top/bottoms of sizes.Count boxes, width in absolute values ///
+            /// Draw the top/bottoms of sizes.Count boxes, width in absolute values
+            /// ╔══════════╗ ┌────────┐ ╔════════════════════╗ 
             if (styles.Count != sizes.Count && styles.Count != foreColors.Count && styles.Count != backColors.Count)
             {
                 throw new MatchingTagsException("All supplied parameter lists must have the same number of items");
@@ -405,7 +394,8 @@ namespace ColorConsole
         public static int DrawGridBody( string style, string part, List<int> columns, string boxColor, string boxBackColor,
                                         string textColor, string textBackColor, List<string> textLines, List<string> alignments)
         {
-            /// Draw the body of a grid to width ///
+            /// Draw the body of a grid to width
+            /// ║  box 0  ║    box 1   ║         box 2        ║
             style = FixStyle(style);
             ValidateColors(ref boxColor, ref boxBackColor);
             ValidateColors(ref textColor, ref textBackColor);
@@ -449,7 +439,8 @@ namespace ColorConsole
         }
         public static int DrawGridOutline(string style, string part, List<int> columns, string foreColor, string backColor, bool midMargin = false)
         {
-            /// Draw the top, mid or bottom of a grid to width ///
+            /// Draw the top, mid or bottom of a grid to width 
+            /// ┌───────────┬───────────┬───────────┬───────────┬──────────┐
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
             List<string> s = SelectCharacterList(part, style);              // "┌", "─", "┐", "┬"
@@ -458,8 +449,8 @@ namespace ColorConsole
             for (int col = 0; col < columns.Count; col++)
             {
                 int colWidth = columns[col];                                // eg {10, 20, 20, 30 } = 80 cols
-                string lSide;                                        // "┌"
-                string rSide;                                        // "┐"
+                string lSide;                                               // "┌"
+                string rSide;                                               // "┐"
                 if (col == 0)
                 {
                     lSide = s[0];                                           // "┌"
@@ -482,7 +473,7 @@ namespace ColorConsole
                 outputs.Add(output);                                        // create new list item with completed string
             }
             output = string.Empty;
-            foreach (string line in outputs) // concatenate all box outlines in outputs
+            foreach (string line in outputs)                                // concatenate all box outlines in outputs
             {
                 output += line;
             }
@@ -492,14 +483,14 @@ namespace ColorConsole
         }
         public static int DrawMultiLineBox(string style, string text, string foreColor, string backColor, string textColor = "WHITE", string textBackColor = "BLACKBG", string boxAlign = "left", string textAlign = "left", int width = 0)
         {
-            ///  Draw a single box containing many lines of text ///
-            /// Convert the supplied string 'text' into a list and pass to same function with over-ride ///
+            /// Draw a single box containing many lines of text
+            /// Convert the supplied string 'text' into a list and pass to same function with over-ride
             List<string> textLines = SplitClean(text, '\n');
             return DrawMultiLineBox(style, textLines, foreColor, backColor, textColor, textBackColor, boxAlign, textAlign, width);
         }
         public static int DrawMultiLineBox(string style, List<string> textLines, string foreColor, string backColor, string textColor = "WHITE", string textBackColor = "BLACKBG", string boxAlign = "left", string textAlign = "left", int width = 0)
         {
-            ///  Draw a single box containing many lines of text ///
+            ///  Draw a single box containing many lines of text, split at whole words
             int numLines = 0;
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
@@ -516,15 +507,17 @@ namespace ColorConsole
         }
         private static string FixStyle(string style)
         {
+            /// format given style to either "s" or "d"
             style = style.Trim().ToLower();
             if (style != "s" && style != "d") style = "s";
             return style;
         }
         private static int FormatColorTags(ref string text, out List<string> colorTagList)
         {
-            /// Checks supplied string has matching tags to define colour strings ///
+            /// Checks supplied string has matching tags to define colour strings
+            /// If string is split on ~ alone, no record of whether this was a colour tag
             colorTagList = new List<string>();
-            // check if even numbers of tags
+            // use Linq to check if even numbers of tags
             if ((text.Count(x => x == sep[0]) % 2 == 1)) throw new MatchingTagsException($"The supplied text {text} does not have matching colour separators: {sep}");
             text = text.Replace(sep, "¶" + sep + "¶");
             List<string> data = SplitClean(text, '¶'); //"~red~some text~green~more text" -> "¶~¶red¶~¶some text¶~¶green¶~¶more text"
@@ -581,26 +574,26 @@ namespace ColorConsole
         }
         public static Tuple<bool, string, string> GetBoolean(string prompt, string promptChar, string textColor, string backColor)
         {
-            /// gets a boolean (yes/no) type entries from the user ///
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, textColor, backColor, 1, 3, "bool"); //correct user input returned
-            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3);
+            /// gets a boolean (yes/no) type entry from the user
+            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, textColor, backColor, 1, 3, "bool");
+            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3); // valid, userInput, errorMessage or ""
         }
         public static Tuple<bool, string, string> GetRealNumber(string prompt, string promptChar, string textColor, string backColor, double min, double max)
         {
-            /// gets a float / double from the user ///
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, textColor, backColor, min, max, "real"); //correct user input returned
-            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3);
+            /// gets a float / double from the user
+            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, textColor, backColor, min, max, "real");
+            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3); // valid, userInput, errorMessage or ""
         }
         public static Tuple<bool, string, string> GetInteger(string prompt, string promptChar, string foreColor, string backColor, double min = 0, double max = 65536)
         {
             /// Public Method: gets an integer from the user ///
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, foreColor, backColor, min, max, "int"); //correct user input returned
-            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3);
+            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, foreColor, backColor, min, max, "int");
+            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3); // valid, userInput, errorMessage or ""
         }
         public static Tuple<bool, string, string> GetString(string prompt, string ending, string foreColor, string backColor, bool withTitle, int min, int max)
         {
             /// Public Method: gets a string from the user ///
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, ending, foreColor, backColor, min, max, "string"); //correct user input returned
+            Tuple<bool, string, string> tuple = ProcessInput(prompt, ending, foreColor, backColor, min, max, "string");
             bool isValid = tuple.Item1;
             string userInput = tuple.Item2;
             if (withTitle && isValid)
@@ -625,7 +618,7 @@ namespace ColorConsole
         }
         public static List<string> GetFormattedLines(List<string> textLines, int maxLength = 0, bool noBorder = false)
         {
-            ///takes a list of lines , checks length of each and adds additional lines if required, returns list///
+            ///takes a list of lines , checks length of each and adds additional lines if required, returns list
             // check length of each line. max = windowWidth
             if (maxLength > windowWidth || maxLength <= 0) maxLength = windowWidth;
             if (!noBorder) maxLength -= 2; //default  80-2 = 78 chars  
@@ -663,7 +656,8 @@ namespace ColorConsole
         }
         private static void Initialise(bool reset = false)
         {
-            /// initialises "constants" (variables in CAPS) lists and dictionaries ///
+            /// initialises "constants" (variables in CAPS) lists and dictionaries
+            /// runs when this class is first referenced, and if user changes the colour tagging character
             if (reset)
             {
                 BLACK = sep + "BLACK" + sep;
@@ -823,8 +817,8 @@ namespace ColorConsole
         }
         public static string Input(string prompt, string ending, string foreColor, string backColor)
         {
-            /// Get keyboard input from user (requires Enter ) ///
-            // check if prompt contains embedded colours
+            /// Get keyboard input from user (requires Enter )
+            /// check if prompt contains embedded colours
 
             FormatColorTags(ref prompt, out List<string> embeddedColors); //extract any colour info from prompt eg ~red~
             foreach(string color in embeddedColors)
@@ -839,8 +833,8 @@ namespace ColorConsole
         public static string InputBox(string style, string returnType, string title, string boxMessage, string inputPrompt, string promptEnd, string foreColor = "WHITE", 
                                        string backColor = "BLACKBG", int width = 0, int minReturnLen = 1, int maxReturnLen = 20, bool withTitle = false)
         {
-            /// Draw an inputBox with title, message, input area ///
-            /// Example "bool", "File Exists Warning", "Are you sure you want to over-write?", "Confirm over-write (y/n)_" ///
+            /// Draw an inputBox with title, message, input area
+            /// Example "bool", "File Exists Warning", "Are you sure you want to over-write?", "Confirm over-write (y/n)_"
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
             if (width > windowWidth || width <= 0) width = windowWidth;
@@ -897,8 +891,8 @@ namespace ColorConsole
         public static int Menu(string style,  string title, string promptChar, List<string> textLines, string foreColor = "WHITE",
                                 string backColor = "BLACKBG", string align = "left", int width = 0)
         {
-            /// displays a menu using the text in 'title', and a list of menu items (string) ///
-            /// This menu will re-draw until user enters correct data ///
+            /// displays a menu using the text in 'title', and a list of menu items (string)
+            /// This menu will re-draw until user enters correct data
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
             if (width > windowWidth || width <= 0) width = windowWidth;
@@ -940,26 +934,27 @@ namespace ColorConsole
             }
             return userInput - 1;
         }
-        private static string[] PadBoxSides(string[] sides, string body,  string boxAlign)
+        private static string[] PadBoxSides(string[] sides, string text, string boxAlign)
         {
+            /// Takes exising sides: ║║, text: some~red~coloured text, and pads to width of console using alignment
             if (boxAlign == "left") //pad rSide 
             {
-                int length = windowWidth - body.Length - 2; // 80 - 78 - 2 = 0
+                int length = windowWidth - text.Length - 2; // 80 - 78 - 2 = 0
                 if (length > 0)    sides[1] = PadString(sides[1], length, " ", "right");    // "║    "
             }
             else if (boxAlign == "right") //pad lSide 
             {
-                int length = windowWidth - body.Length - 2; // 80 - 78 - 1 = 1
-                if (length > 0) sides[0] = PadString(sides[0], windowWidth - body.Length - 1, " ", "left");     // "    ║"
+                int length = windowWidth - text.Length - 2; // 80 - 78 - 1 = 1
+                if (length > 0) sides[0] = PadString(sides[0], windowWidth - text.Length - 1, " ", "left");     // "    ║"
             }
             else // centre
             {
-                int colorTagSpaces = FormatColorTags(ref body, out List<string> embeddedColors); //extract any colour info from body eg ~red~);
-                int length = windowWidth - body.Length - 2 + colorTagSpaces; // 80 - 78 - 2 = 0
+                int colorTagSpaces = FormatColorTags(ref text, out List<string> embeddedColors); //extract any colour info from body eg ~red~);
+                int length = windowWidth - text.Length - 2 + colorTagSpaces; // 80 - 78 - 2 = 0
                 if (length >= 2)
                 {
                     sides[0] = PadString(sides[0], length / 2, " ", "right");
-                    length = windowWidth - body.Length - sides[0].Length + colorTagSpaces;
+                    length = windowWidth - text.Length - sides[0].Length + colorTagSpaces;
                     if (length > 0)    sides[1] = PadString(sides[1], length, " ", "left");
                 }
             }
@@ -967,7 +962,7 @@ namespace ColorConsole
         }
         private static string PadString(string text, int width, string padChar, string align = "left")
         {
-            /// width should be width of the part to be padded, so excludes left/right margin characters ///
+            /// width should be width of the part to be padded, so excludes left/right margin characters
             string output = text;
             int colourTagSpaces = 0;
             if (text.Contains(sep[0])) // colour tag(s) present
@@ -989,20 +984,6 @@ namespace ColorConsole
             }
 
             return output;
-        }
-        public static void Print(string text, string foreColor = "WHITE", string backColor = "BLACKBG")
-        {
-            ValidateColors(ref foreColor, ref backColor);
-            Console.ForegroundColor = conColors[foreColor];
-            Console.BackgroundColor = conColors[backColor];
-            Console.WriteLine(text);
-            Console.ResetColor();
-        }
-        public static void PrintMessage(string message, int delay, string messageColour, string delayColour)
-        {
-            ColorPrint($"{messageColour}{message}");
-            ColorPrint($"{delayColour}Retry in {delay / 1000} secs..."); //delay in ms
-            Thread.Sleep(delay);
         }
         private static Tuple<bool, string, string> ProcessInput(string prompt, string promptChar, string textColor, string backColor, double min, double max, string dataType)
         {
@@ -1101,8 +1082,8 @@ namespace ColorConsole
                     if (style == "d") s = dSymbolsBottom;   // ╚ ═ ╝ ╩
                     break;
                 case "body":
-                    s = sSymbolsBody;                     // └ ─ ┘ ┴ 
-                    if (style == "d") s = dSymbolsBody;   // ╚ ═ ╝ ╩
+                    s = sSymbolsBody;                       // └ ─ ┘ ┴ 
+                    if (style == "d") s = dSymbolsBody;     // ╚ ═ ╝ ╩
                     break;
             }
             return s;
@@ -1118,11 +1099,6 @@ namespace ColorConsole
             Console.ForegroundColor = conColors[foreColor];
             Console.BackgroundColor = conColors[backColor];
             Console.Clear();
-        }
-        public static void SetConsoleBufferHeight(int rows)
-        {
-            /// Setup buffersize of console ///
-            Console.BufferHeight = rows;
         }
         private static void SetConsoleColors(string foreColor, string backColor)
         {
@@ -1147,6 +1123,7 @@ namespace ColorConsole
         }
         public static int Teletype(string text, int delay, string foreColor = "WHITE", string backColor = "BLACKBG")
         {
+            /// Visual effect of slow character printout
             SetConsoleColors(foreColor, backColor);
             for (int i = 0; i < text.Length; i++)
             {
@@ -1158,21 +1135,21 @@ namespace ColorConsole
         }
         private static void ValidateAlignment(ref string align)
         {
-            /// check and correct align strings, else error ///
+            /// check and correct align strings, else error
             align = align.Trim().ToLower();
             List<string> check = new List<string> { "left", "centre", "center", "right" };
             if (!check.Contains(align)) throw new AlignException("Align parameter must be: 'left', 'centre', 'center', 'right'");
         }
         private static void ValidateBoxPart(ref string part)
         {
-            /// check and correct box part strings, else error ///
+            /// check and correct box part strings, else error
             part = part.Trim().ToLower();
             List<string> check = new List<string> { "top", "mid", "bottom", "body" };
             if (!check.Contains(part)) throw new BoxPartException("Part parameter must be: 'top', 'mid', 'bottom', 'body'");
         }
         private static void ValidateColors(ref string foreColor, ref string backColor)
         {
-            /// Fore and back colours passed as pointers, so changing them here does not require a return  ///
+            /// Fore and back colours passed as pointers, so changing them here does not require a return
             string modifiedForeColor = foreColor.ToUpper(); //"red" -> "RED" "~red~" -> "~RED~"
             string modifiedBackColor = backColor.ToUpper(); //"red" -> "RED" "~redbg~" -> "~REDBG~"
             modifiedForeColor = modifiedForeColor.Replace(sep,""); //remove separators
