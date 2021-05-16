@@ -1237,6 +1237,7 @@ namespace ColorConsole
         }
         public static int GamePlayGame(int secretNumber)
         {
+            /// This function has some of the game logic in it, but is mostly user I/O
             int guess = 0;
             int attempts = 0;
             while (guess != secretNumber)
