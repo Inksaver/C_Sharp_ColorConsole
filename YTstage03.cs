@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 static Dictionary<string, ConsoleColor> conColors = new Dictionary<string, ConsoleColor>();
 static string sep      = "~";
-static string WHITE    = $"{sep}WHITE{sep}";
+static string WHITE    = $"{sep}WHITE{sep}"; //~WHITE~
 static string WHITEBG  = $"{sep}WHITEBG{sep}";
 static string BLACK    = $"{sep}BLACK{sep}";
 static string BLACKBG  = $"{sep}BLACKBG{sep}";
@@ -22,7 +22,7 @@ static void Main(string[] args)
 
 	ColorPrint("~white~Hello ~red~~whitebg~Coloured~green~~blackbg~ World");  // method 1: hard coded using ~
     ColorPrint($"{WHITE}Hello {RED}{WHITEBG}Coloured{GREEN}{BLACKBG} World"); // method 2: change character ~ in line 5 if required
-	Console.ResetColor();
+	//Console.ResetColor();
 	Console.Write("Any key to quit");
 	Console.ReadKey();
 }
