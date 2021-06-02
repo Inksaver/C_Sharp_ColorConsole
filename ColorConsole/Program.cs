@@ -34,7 +34,7 @@ namespace ColorConsole
                 /// Menu(string style,  string title, string promptChar, List<string> textLines, string foreColor = "WHITE", ///
                 ///      string backColor = "BLACKBG", string align = "left", int width = 0)                                 ///
                 int choice = UI.Menu("d", title, ">_", options);
-                if (choice == 0)        UI.ColorPrintDemo();
+                if (choice == 0)        ColorPrintDemo();
                 else if (choice == 1)   DemoWithoutUI();
                 else if (choice == 2)   PrintDemo();
                 else if (choice == 3)   PrintWithoutUI();
@@ -49,6 +49,33 @@ namespace ColorConsole
                 else if (choice == 12)  quit = true;
             }
             UI.Quit(false); // false = exit without pressing a key
+        }
+        static void ColorPrintDemo()
+        {
+            /// use {{ and }} to escape {} interpolated strings. Use (char)34 to insert " into strings alternative to escaping with \"
+            Console.Clear();
+            int numLines = UI.ColorPrint($"~WHITE~$\"{{WHITE}}This line is white on black.\"");
+            numLines += UI.ColorPrint($"~GREY~${(char)34}{{GREY}}This line is grey on black.\"");
+            numLines += UI.ColorPrint($"~DGREY~$\"{{DGREY}}This line is dark grey on black.{(char)34}");
+            numLines += UI.ColorPrint($"~BLUE~${(char)34}{{BLUE}}This line is blue on black.{(char)34}");
+            numLines += UI.ColorPrint($"~GREEN~${(char)34}{{GREEN}}This line is green on black.{(char)34}");
+            numLines += UI.ColorPrint($"~CYAN~${(char)34}{{CYAN}}This line is cyan on black.{(char)34}");
+            numLines += UI.ColorPrint($"~RED~${(char)34}{{RED}}This line is red on black.{(char)34}");
+            numLines += UI.ColorPrint($"~MAGENTA~${(char)34}{{MAGENTA}}This line is magenta on black.{(char)34}");
+            numLines += UI.ColorPrint($"~YELLOW~${(char)34}{{YELLOW}}This line is yellow on black.{(char)34}");
+            numLines += UI.ColorPrint($"~DBLUE~${(char)34}{{DBLUE}}This line is dark blue on black.{(char)34}");
+            numLines += UI.ColorPrint($"~DGREEN~${(char)34}{{DGREEN}}This line is dark green on black{(char)34}");
+            numLines += UI.ColorPrint($"~DCYAN~${(char)34}{{DCYAN}}This line is dark cyan on black.{(char)34}");
+            numLines += UI.ColorPrint($"~DRED~${(char)34}{{DRED}}This line is dark red on black.{(char)34}");
+            numLines += UI.ColorPrint($"~DMAGENTA~${(char)34}{{DMAGENTA}}This line is dark magenta on black.{(char)34}");
+            numLines += UI.ColorPrint($"~DYELLOW~${(char)34}{{DYELLOW}}This line is dark yellow on black.{(char)34}");
+            numLines += UI.ColorPrint($"~BLACK~~WHITEBG~${(char)34}{{BLACK}}{{WHITEBG}}This line is black on white.{(char)34}");
+            numLines += UI.ColorPrint($"~WHITE~${(char)34}{{WHITE}}This line is white, and now ~RED~{{RED}}red on black.{(char)34}");
+            numLines += UI.ColorPrint($"~GREEN~~REDBG~${(char)34}{{GREEN}}{{REDBG}}This line is green~RED~~GREENBG~{{RED}}{{GREENBG}} on red.{(char)34}".PadRight(UI.windowWidth + 28)); //+28 to account for ~GREEN~~RED~ etc
+            numLines += UI.ColorPrint($"~RED~~GREENBG~${(char)34}{{RED}}{{GREENBG}}This line is red~GREEN~~REDBG~{{GREEN}}{{REDBG}} on green.{(char)34}".PadRight(UI.windowWidth + 28)); //+28 to account for ~GREEN~~RED~ etc
+            numLines += UI.AddLines(5, numLines);
+            numLines += UI.DrawLine("d", "white", "black");
+            numLines += UI.DisplayMessage("Press Enter to continue...", true, false);
         }
         static void DemoWithoutUI()
         {
@@ -145,8 +172,8 @@ namespace ColorConsole
             numLines += UI.DrawBoxBody("d", "", "centre", "yellow", "black");
             numLines += UI.DrawBoxBody("d", "", "centre", "yellow", "black");
             numLines += UI.DrawBoxOutline("d", "bottom", "yellow", "black");
-            UI.AddLines(5, numLines);
-            UI.DrawLine("D", "WHITE", "black");
+            numLines += UI.AddLines(5, numLines);
+            numLines += UI.DrawLine("D", "WHITE", "black");
             UI.DisplayMessage("", true, false);
         }
         static void DisplayMessageDemo()
@@ -172,6 +199,39 @@ namespace ColorConsole
                                             "Type your comment", ">_", "red","black", 60, 1, 50);
             UI.ColorPrint($"Your opinion was:\n{userInput}");
             UI.DisplayMessage("", true, false);
+        }
+        public static string GetInputDemo(string demoType, string description)
+        {
+            /// Most UI operations should be done within this UI class  ///
+            /// Try to keep all I/O operations out of other classes     ///
+            /// This will make transfer of code to a GUI much easier    ///
+            string userInput = "";
+            UI.Clear();
+            int numLines = UI.DrawMultiLineBox("s", description, "yellow", "black", "white", "black", "left");
+            numLines += UI.AddLines(5, numLines); // pad Console to leave 5 empty lines
+            numLines += UI.DrawLine("d", "white", "black"); // now leaves 4 empty lines
+            switch (demoType)
+            {
+                case "string":
+                    userInput = UI.GetString(numLines, "UI.GetString: Type your name (1-10 chars)",
+                                        ">_", "green", "black", true, 1, 10);
+                    break;
+                case "int":
+                    userInput = UI.GetInteger(numLines, "UI.GetInteger: Type your age (5-100)",
+                                            ">_", "cyan", "black", 5, 100).ToString();
+                    break;
+
+                case "real":
+                    userInput = UI.GetRealNumber(numLines, "UI.GetRealNumber: Type your height in metres (0.5 to 2.0)",
+                                            ">_", "magenta", "black", 0.5, 2).ToString();
+                    break;
+
+                case "bool":
+                    userInput = UI.GetBoolean(numLines, "UI.GetBoolean: Is this library useful (y/n)?",
+                                            ">_", "blue", "black").ToString();
+                    break;
+            }
+            return userInput;
         }
         static void GridDemo()
         {
@@ -330,13 +390,13 @@ namespace ColorConsole
                                 "~blue~UI.GetBoolean ~white~requires the user to type 'y' or 'n' and returns a boolean value.\n\n"+
                                 "~green~Test ~white~each one out with ~blue~Enter ~white~only, or wrong numbers, too many characters etc.\n\n" +
                                 "~red~Try and break it!";
-            string retValue = UI.GetInputDemo("string", description);
+            string retValue = GetInputDemo("string", description);
             UI.DisplayMessage($"You entered {retValue}",false, true);
-            retValue = UI.GetInputDemo("int", description);
+            retValue = GetInputDemo("int", description);
             UI.DisplayMessage($"You entered {retValue}", false, true);
-            retValue = UI.GetInputDemo("real", description);
+            retValue = GetInputDemo("real", description);
             UI.DisplayMessage($"You entered {retValue}", false, true);
-            retValue = UI.GetInputDemo("bool", description);
+            retValue = GetInputDemo("bool", description);
             UI.DisplayMessage($"You entered {retValue}. Enter to continue", true, false);
         }
     }

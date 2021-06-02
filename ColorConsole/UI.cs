@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 namespace ColorConsole
@@ -187,16 +184,17 @@ namespace ColorConsole
             if (reset)  Console.ResetColor();
             return numLines;
         }
-        public static void DisplayMessage(string message, bool useInput, bool useTimer, string foreColor = "WHITE", string backColor = "BLACKBG", int delay = 2000) // string version
+        public static int DisplayMessage(string message, bool useInput, bool useTimer, string foreColor = "WHITE", string backColor = "BLACKBG", int delay = 2000) // string version
         {
             /// show user message or default, either wait for 2 secs, or ask user to press enter ///
+            int numLines = message.Count(f => (f == '\n'));
             ValidateColors(ref foreColor, ref backColor);
             if (useTimer) //pause for delay mS
             {
                 if (message != string.Empty)
                 {
                     ColorPrint($"{foreColor}{backColor}{message}");
-                    Thread.Sleep(delay);
+                    Thread.Sleep(delay);  
                 }
             }
             if (useInput) // wait for Enter key
@@ -205,17 +203,26 @@ namespace ColorConsole
                 else message = $"{foreColor}{backColor}{message}";
                 Input(message, "...", foreColor, backColor);
             }
+            numLines += 1;
+            return numLines;
         }
-        public static void DisplayMessage(List<string> messages, bool useInput, bool useTimer, string foreColor = "WHITE", string backColor = "BLACKBG", int delay = 2000) //list vesion
+        public static int DisplayMessage(List<string> messages, bool useInput, bool useTimer, string foreColor = "WHITE", string backColor = "BLACKBG", int delay = 2000) //list vesion
         {
             /// show user message or default, either wait for 2 secs, or ask user to press enter ///
             ValidateColors(ref foreColor, ref backColor);
+            int numLines = 0;
             foreach (string message in messages)
             {
                 ColorPrint($"{foreColor}{backColor}{message}");
+                numLines++;
             }
             if (useTimer) Thread.Sleep(delay); //pause for delay mS
-            if (useInput) Input("Press Enter to continue", "...", WHITE, BLACK);
+            if (useInput)
+            {
+                Input("Press Enter to continue", "...", WHITE, BLACK);
+                numLines++;
+            }
+            return numLines;
         } 
         public static int DrawBoxBody(string style, string text, string boxAlign, string foreColor, string backColor,
                                       string textColor = "WHITE", string textBackColor = "BLACKBG", string textAlign = "left", int width = 0)
@@ -572,36 +579,34 @@ namespace ColorConsole
             text = output; //byref
             return colourTagSpaces;
         }
-        public static Tuple<bool, string, string> GetBoolean(string prompt, string promptChar, string textColor, string backColor)
+        public static bool GetBoolean(int row, string prompt, string promptChar, string textColor, string backColor)
         {
             /// gets a boolean (yes/no) type entry from the user
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, textColor, backColor, 1, 3, "bool");
-            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3); // valid, userInput, errorMessage or ""
+            string userInput = ProcessInput(row, prompt, promptChar, textColor, backColor, 1, 3, "bool");
+            return Convert.ToBoolean(userInput);
         }
-        public static Tuple<bool, string, string> GetRealNumber(string prompt, string promptChar, string textColor, string backColor, double min, double max)
+        public static double GetRealNumber(int row, string prompt, string promptChar, string textColor, string backColor, double min, double max)
         {
             /// gets a float / double from the user
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, textColor, backColor, min, max, "real");
-            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3); // valid, userInput, errorMessage or ""
+            string userInput = ProcessInput(row, prompt, promptChar, textColor, backColor, min, max, "real");
+            return Convert.ToDouble(userInput);
         }
-        public static Tuple<bool, string, string> GetInteger(string prompt, string promptChar, string foreColor, string backColor, double min = 0, double max = 65536)
+        public static int GetInteger(int row, string prompt, string promptChar, string foreColor, string backColor, double min = 0, double max = 65536)
         {
             /// Public Method: gets an integer from the user ///
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, promptChar, foreColor, backColor, min, max, "int");
-            return new Tuple<bool, string, string>(tuple.Item1, tuple.Item2, tuple.Item3); // valid, userInput, errorMessage or ""
+            string userInput = ProcessInput(row, prompt, promptChar, foreColor, backColor, min, max, "int");
+            return Convert.ToInt32(userInput);
         }
-        public static Tuple<bool, string, string> GetString(string prompt, string ending, string foreColor, string backColor, bool withTitle, int min, int max)
+        public static string GetString(int row, string prompt, string ending, string foreColor, string backColor, bool withTitle, int min, int max)
         {
             /// Public Method: gets a string from the user ///
-            Tuple<bool, string, string> tuple = ProcessInput(prompt, ending, foreColor, backColor, min, max, "string");
-            bool isValid = tuple.Item1;
-            string userInput = tuple.Item2;
-            if (withTitle && isValid)
+            string userInput = ProcessInput(row, prompt, ending, foreColor, backColor, min, max, "string");
+            if (withTitle)
             {
                 TextInfo textInfo = new CultureInfo("en-UK", false).TextInfo;
                 userInput = textInfo.ToTitleCase(userInput);
             }
-            return new Tuple<bool, string, string>(isValid, userInput, tuple.Item3); // valid, userInput, errorMessage or ""
+            return userInput;
         }
         public static List<string> GetFormattedLines(string text, int maxLength = 0, bool noBorder = false)
         {
@@ -838,53 +843,36 @@ namespace ColorConsole
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
             if (width > windowWidth || width <= 0) width = windowWidth;
-            bool isValid = false;
+            Clear();
             string userInput = "";
-            while (!isValid)
+            List<string> lines = GetFormattedLines(boxMessage); // returns alist of lines max length of any line Console.Windowwidth - 3
+            int numLines = DrawBoxOutline(style, "top", foreColor, backColor, "centre", width); // draw top of box double line, yellow
+            numLines += DrawBoxBody(style, $"{title}", "centre", foreColor, backColor, foreColor, backColor, "centre", width); // draw title
+            numLines += DrawBoxOutline(style, "mid", foreColor, backColor, "centre", width); // draw single line
+            foreach (string line in lines)
             {
-                Clear();
-                List<string> lines = GetFormattedLines(boxMessage); // returns alist of lines max length of any line Console.Windowwidth - 3
-                int numLines = DrawBoxOutline(style, "top", foreColor, backColor, "centre", width); // draw top of box double line, yellow
-                numLines += DrawBoxBody(style, $"{title}", "centre", foreColor, backColor, foreColor, backColor, "centre", width); // draw title
-                numLines += DrawBoxOutline(style, "mid", foreColor, backColor, "centre", width); // draw single line
-                foreach (string line in lines)
-                {
-                    numLines += DrawBoxBody(style,  $"{line}", "centre", foreColor, backColor, foreColor, backColor, "left", width); // draw each line of text
-                }
-                numLines += DrawBoxBody(style, "", "centre", foreColor, backColor, foreColor, backColor, "centre", width); // draw empty line
-                numLines += DrawBoxOutline(style, "bottom", foreColor, backColor, "centre", width); // draw bottom of box double line, yellow
-                AddLines(5, numLines);
-                DrawLine("d", WHITE, BLACKBG);
-                
-                Tuple<bool, string, string> retValue = new Tuple<bool, string, string>(false, "", "");
-                if (returnType == "str" || returnType == "string")
-                {
-                    //valid, userInput, message = getString(inputPrompt, "", "", false, minLength, maxLength);
-                    retValue = GetString(inputPrompt, promptEnd, foreColor, backColor, withTitle, minReturnLen, maxReturnLen);
-                }
-                else if (returnType == "int")
-                {
-                    //valid, userInput, message = getBoolean(inputPrompt, "", "")
-                    retValue = GetInteger(inputPrompt, promptEnd, foreColor, backColor, minReturnLen, maxReturnLen);
-                }
-                else if (returnType == "real" || returnType == "float" || returnType == "double")
-                {
-                    //valid, userInput, message = getBoolean(inputPrompt, "", "")
-                    retValue = GetRealNumber(inputPrompt, promptEnd, foreColor, backColor, minReturnLen, maxReturnLen);
-                }
-                else if (returnType == "bool" || returnType == "boolean")
-                {
-                    //valid, userInput, message = getBoolean(inputPrompt, "", "")
-                    retValue = GetBoolean(inputPrompt, promptEnd, "", "");
-                }
-                isValid = retValue.Item1;
-                userInput = retValue.Item2;
-                string message = retValue.Item3;
-                if (!isValid)
-                {
-                    ColorPrint($"{RED}{message}{MAGENTA} retry in 2 secs...");
-                    Thread.Sleep(2000);
-                }
+                numLines += DrawBoxBody(style,  $"{line}", "centre", foreColor, backColor, foreColor, backColor, "left", width); // draw each line of text
+            }
+            numLines += DrawBoxBody(style, "", "centre", foreColor, backColor, foreColor, backColor, "centre", width); // draw empty line
+            numLines += DrawBoxOutline(style, "bottom", foreColor, backColor, "centre", width); // draw bottom of box double line, yellow
+            numLines += AddLines(5, numLines);
+            numLines += DrawLine("d", WHITE, BLACKBG);
+
+            if (returnType == "str" || returnType == "string")
+            {
+                userInput = GetString(numLines, inputPrompt, promptEnd, foreColor, backColor, withTitle, minReturnLen, maxReturnLen);
+            }
+            else if (returnType == "int")
+            {
+                userInput = GetInteger(numLines, inputPrompt, promptEnd, foreColor, backColor, minReturnLen, maxReturnLen).ToString();
+            }
+            else if (returnType == "real" || returnType == "float" || returnType == "double")
+            {
+                userInput = GetRealNumber(numLines, inputPrompt, promptEnd, foreColor, backColor, minReturnLen, maxReturnLen).ToString();
+            }
+            else if (returnType == "bool" || returnType == "boolean")
+            {
+                userInput = GetBoolean(numLines, inputPrompt, promptEnd, "", "").ToString();
             }
             return userInput; // string eg filename typed in, || bool
         }
@@ -895,43 +883,28 @@ namespace ColorConsole
             /// This menu will re-draw until user enters correct data
             style = FixStyle(style);
             ValidateColors(ref foreColor, ref backColor);
-            if (width > windowWidth || width <= 0) width = windowWidth;
-            int userInput = 0;
-            bool isValid = false;
-            string message;
-            
+            if (width > windowWidth || width <= 0) width = windowWidth;            
             for (int i = 0; i < textLines.Count; i++)
             {
                 if ( i < 9)     textLines[i] = $"     {i + 1}) {textLines[i]}";
                 else            textLines[i] = $"    {i + 1}) {textLines[i]}";
             }
-            while (!isValid)
+            Clear();
+            int numLines = 0;
+            numLines += DrawBoxOutline(style, "top", foreColor, backColor);           // draw top of box double line
+            numLines += DrawBoxBody(style, "", "centre", foreColor, backColor);       // draw empty line
+            numLines += DrawBoxBody(style, $"{title}", "left", foreColor, backColor); // draw title
+            numLines += DrawBoxBody(style, "", "centre", foreColor, backColor);       // draw empty line
+            for (int i = 0; i < textLines.Count; i++)
             {
-                Clear();
-                int numLines = 0;
-                numLines += DrawBoxOutline(style, "top", foreColor, backColor);           // draw top of box double line
-                numLines += DrawBoxBody(style, "", "centre", foreColor, backColor);       // draw empty line
-                numLines += DrawBoxBody(style, $"{title}", "left", foreColor, backColor); // draw title
-                numLines += DrawBoxBody(style, "", "centre", foreColor, backColor);       // draw empty line
-                for (int i = 0; i < textLines.Count; i++)
-                {
-                    numLines += DrawBoxBody(style, $"{textLines[i]}", "left", foreColor, backColor); // draw menu options
-                }
-                numLines += DrawBoxBody(style, "", "centre", foreColor, backColor);       // draw empty line
-                numLines += DrawBoxOutline(style, "bottom", foreColor, backColor);        // draw top of box double line, yellow
-                // get multiple return variables using Tuple
-                AddLines(5, numLines);
-                DrawLine("d", WHITE, BLACKBG);
-                var tuple = GetInteger($"Type the number of your choice (1 to {textLines.Count})", promptChar, WHITE, BLACKBG, 1, textLines.Count);
-                isValid = tuple.Item1;
-                int.TryParse(tuple.Item2, out userInput);
-                message = tuple.Item3;
-                if (!isValid)
-                {
-                    ColorPrint($"{RED}{message}{MAGENTA} retry in 2 secs...");
-                    Thread.Sleep(2000);
-                }
+                numLines += DrawBoxBody(style, $"{textLines[i]}", "left", foreColor, backColor); // draw menu options
             }
+            numLines += DrawBoxBody(style, "", "centre", foreColor, backColor);       // draw empty line
+            numLines += DrawBoxOutline(style, "bottom", foreColor, backColor);        // draw top of box double line, yellow
+            // get multiple return variables using Tuple
+            numLines += AddLines(5, numLines);
+            numLines += DrawLine("d", WHITE, BLACKBG);
+            int userInput = GetInteger(numLines, $"Type the number of your choice (1 to {textLines.Count})", promptChar, WHITE, BLACKBG, 1, textLines.Count);
             return userInput - 1;
         }
         private static string[] PadBoxSides(string[] sides, string text, string boxAlign)
@@ -985,70 +958,84 @@ namespace ColorConsole
 
             return output;
         }
-        private static Tuple<bool, string, string> ProcessInput(string prompt, string promptChar, string textColor, string backColor, double min, double max, string dataType)
+        private static string ProcessInput(int row, string prompt, string promptChar, string textColor, string backColor, double min, double max, string dataType)
         {
-            string message = "";
             bool valid = false;
             if (dataType.ToLower().Substring(0, 3) == "str") dataType = "string";
             if (dataType.ToLower().Substring(0, 3) == "int") dataType = "int";
-            string userInput = Input(prompt, promptChar, textColor, backColor);
-
-            if (dataType == "string")
+            string userInput = "";
+            while (!valid)
             {
-                if (userInput.Length == 0 && min > 0 )  message = "Just pressing the Enter key doesn't work...";
-                else if (userInput.Length > max)        message = $"Try entering between {min} and {max} characters...";
-                else                                    valid = true;
-            }
-            else //integer, float, bool
-            {         
-                if (dataType == "bool")
+                string message = "";
+                userInput = Input(prompt, promptChar, textColor, backColor);
+                if (dataType == "string")
                 {
-                    if (userInput.Length == 0)          message = "Just pressing the Enter key doesn't work...";
+                    if (userInput.Length == 0 && min > 0) message = "Just pressing the Enter key doesn't work...";
+                    else if (userInput.Length > max) message = $"Try entering between {min} and {max} characters...";
+                    else if (double.TryParse(userInput, out double conversion)) message = "You just entered a number";
+                    else valid = true;
+                }
+                else //integer, float, bool
+                {
+                    if (userInput.Length == 0)
+                    {
+                        message = "Just pressing the Enter key doesn't work...";
+                    }
                     else
                     {
-                        if (userInput.Substring(0, 1).ToLower() == "y")
+                        if (dataType == "bool")
                         {
-                            userInput = "true";
-                            valid = true;
+                            if (userInput.Substring(0, 1).ToLower() == "y")
+                            {
+                                userInput = "true";
+                                valid = true;
+                            }
+                            else if (userInput.Substring(0, 1).ToLower() == "n")
+                            {
+                                userInput = "false";
+                                valid = true;
+                            }
+                            else message = "Only anything starting with y or n is accepted...";
                         }
-                        else if (userInput.Substring(0, 1).ToLower() == "n")
-                        {
-                            userInput = "false";
-                            valid = true;
-                        }
-                        else message = "Only anything starting with y or n is accepted...";
-                    }
-                }
-                else
-                {
-                    if (dataType == "int")
-                    {
-                        if (int.TryParse(userInput, out int conversion))
-                        {
-                            if (conversion >= min && conversion <= max)     valid = true;
-                            else                                            message = $"Try a number from {min} to {max}...";
-                        }
-                    }
-                    else if (dataType == "real")
-                    {
-                        if (double.TryParse(userInput, out double conversion))
-                        {
-                            if (conversion >= min && conversion <= max)     valid = true;
-                            else                                            message = $"Try a number from {min} to {max}...";
-                        }
-                    }
-                    if (!valid && message == "")
-                    {
-                        if (userInput == string.Empty) message = $"Try entering a number: 'Enter' does not work...";
                         else
                         {
-                            if(dataType == "int")   message = $"Try entering a whole number: {userInput} cannot be converted...";
-                            else                    message = $"Try entering a decimal number: {userInput} cannot be converted...";
+                            if (dataType == "int")
+                            {
+                                if (int.TryParse(userInput, out int conversion))
+                                {
+                                    if (conversion >= min && conversion <= max) valid = true;
+                                    else message = $"Try a number from {min} to {max}...";
+                                }
+                            }
+                            else if (dataType == "real")
+                            {
+                                if (double.TryParse(userInput, out double conversion))
+                                {
+                                    if (conversion >= min && conversion <= max) valid = true;
+                                    else message = $"Try a number from {min} to {max}...";
+                                }
+                            }
+                            if (!valid && message == "")
+                            {
+                                if (dataType == "int") message = $"Try entering a whole number: {userInput} cannot be converted...";
+                                else message = $"Try entering a decimal number: {userInput} cannot be converted...";
+                            }
                         }
                     }
                 }
+                if (!valid)
+                {
+                    ColorPrint($"{RED}{message}{MAGENTA} retry in 2 secs...");
+                    Thread.Sleep(2000);
+                    for (int i = row; i < row + 4; i++)
+                    {
+                        Console.SetCursorPosition(0, i);
+                        Console.Write("".PadRight(windowWidth));
+                    }
+                    Console.SetCursorPosition(0, row);
+                }
             }
-            return new Tuple<bool, string, string>(valid, userInput, message); //tuple.Item1 string can be converted to bool, int or float
+            return  userInput; //string can be converted to bool, int or float
         }
         public static void Quit(bool withConfirm = true)
         {
@@ -1161,122 +1148,6 @@ namespace ColorConsole
             else modifiedBackColor = $"{sep}{modifiedBackColor}BG{sep}";
             foreColor = modifiedForeColor; // "~WHITE~" got through checks so re-assign original parameters by reference
             backColor = modifiedBackColor; // "~BLACKBG~"
-        }
-        #endregion
-        #region demo code ***Can be deleted****
-        public static void ColorPrintDemo()
-        {
-            /// use {{ and }} to escape {} interpolated strings. Use (char)34 to insert " into strings alternative to escaping with \"
-            Console.Clear();
-            ColorPrint($"{WHITE}$\"{{WHITE}}This line is white on black.\"");
-            ColorPrint($"{GREY}${(char)34}{{GREY}}This line is grey on black.\"");
-            ColorPrint($"{DGREY}$\"{{DGREY}}This line is dark grey on black.{(char)34}");
-            ColorPrint($"{BLUE}${(char)34}{{BLUE}}This line is blue on black.{(char)34}");
-            ColorPrint($"{GREEN}${(char)34}{{GREEN}}This line is green on black.{(char)34}");
-            ColorPrint($"{CYAN}${(char)34}{{CYAN}}This line is cyan on black.{(char)34}");
-            ColorPrint($"{RED}${(char)34}{{RED}}This line is red on black.{(char)34}");
-            ColorPrint($"{MAGENTA}${(char)34}{{MAGENTA}}This line is magenta on black.{(char)34}");
-            ColorPrint($"{YELLOW}${(char)34}{{YELLOW}}This line is yellow on black.{(char)34}");
-            ColorPrint($"{DBLUE}${(char)34}{{DBLUE}}This line is dark blue on black.{(char)34}");
-            ColorPrint($"{DGREEN}${(char)34}{{DGREEN}}This line is dark green on black{(char)34}");
-            ColorPrint($"{DCYAN}${(char)34}{{DCYAN}}This line is dark cyan on black.{(char)34}");
-            ColorPrint($"{DRED}${(char)34}{{DRED}}This line is dark red on black.{(char)34}");
-            ColorPrint($"{DMAGENTA}${(char)34}{{DMAGENTA}}This line is dark magenta on black.{(char)34}");
-            ColorPrint($"{DYELLOW}${(char)34}{{DYELLOW}}This line is dark yellow on black.{(char)34}");
-            ColorPrint($"{BLACK}{WHITEBG}${(char)34}{{BLACK}}{{WHITEBG}}This line is black on white.{(char)34}");
-            ColorPrint($"{WHITE}${(char)34}{{WHITE}}This line is white, and now {RED}{{RED}}red on black.{(char)34}");
-            ColorPrint($"{GREEN}{REDBG}${(char)34}{{GREEN}}{{REDBG}}This line is green{RED}{GREENBG}{{RED}}{{GREENBG}} on red.{(char)34}".PadRight(windowWidth + 28)); //+28 to account for ~GREEN~~RED~ etc
-            ColorPrint($"{RED}{GREENBG}${(char)34}{{RED}}{{GREENBG}}This line is red{GREEN}{REDBG}{{GREEN}}{{REDBG}} on green.{(char)34}".PadRight(windowWidth + 28)); //+28 to account for ~GREEN~~RED~ etc
-            AddLines(5, 19);
-            DrawLine("d", "white", "black");
-            DisplayMessage("Press Enter to continue...", true, false);
-        }
-        public static string GetInputDemo(string demoType, string description)
-        {
-            /// Most UI operations should be done within this UI class  ///
-            /// Try to keep all I/O operations out of other classes     ///
-            /// This will make transfer of code to a GUI much easier    ///
-            bool valid = false;
-            string userInput = "";
-            while (!valid)
-            {
-                Clear();
-                string message;
-                Tuple<bool, string, string> getData = new Tuple<bool, string, string> (false,"","");
-                int numLines = DrawMultiLineBox("s", description, "yellow", "black", "white", "black", "left");
-                AddLines(5, numLines); // pad Console to leave 5 empty lines
-                DrawLine("d", "white", "black"); // now leaves 4 empty lines
-                switch(demoType)
-                {
-                    case "string":
-                        getData = GetString("UI.GetString: Type your name (1-10 chars)",
-                                            ">_", "green", "black", true, 1, 10);
-                        break;
-                    case "int":
-                        getData = GetInteger("UI.GetInteger: Type your age (5-100)",
-                                             ">_", "cyan", "black", 5, 100);
-                        break;
-
-                    case "real":
-                        getData = GetRealNumber("UI.GetRealNumber: Type your height in metres (0.5 to 2.0)",
-                                                ">_", "magenta", "black", 0.5, 2);
-                        break;
-
-                    case "bool":
-                        getData = GetBoolean("UI.GetBoolean: Is this library useful (y/n)?",
-                                             ">_", "blue", "black");
-                        break;
-                }
-                
-                valid = getData.Item1;
-                userInput = getData.Item2;
-                message = getData.Item3;
-                if (message != string.Empty) DisplayMessage(message, false, true, "red", "black");
-            }
-            return userInput;
-        }
-        public static int GamePlayGame(int secretNumber)
-        {
-            /// This function has some of the game logic in it, but is mostly user I/O
-            int guess = 0;
-            int attempts = 0;
-            while (guess != secretNumber)
-            {
-                attempts++;
-                Clear();
-                string userInput = InputBox("s", "int", "~magenta~Guess The Number", "~cyan~See if you can guess the number", "Type your guess for the secret number,(1 to 100)", ">_", "green", "black", 60, 1, 100);
-                guess = Convert.ToInt32(userInput);
-                if (guess > secretNumber)
-                {
-                    DisplayMessage($"Sorry, your guess {guess} was too high", false, true, "magenta", "black", 3000);
-                }
-                else if (guess < secretNumber)
-                {
-                    DisplayMessage($"Sorry, your guess {guess} was too low", false, true, "cyan", "black", 3000);
-                }
-            }
-            return attempts;
-        }
-        public static void GameShowEnding(string description)
-        {
-            Clear();
-            int numLines = DrawMultiLineBox("s", description, "yellow", "black", "white", "black", "centre", "centre");
-            numLines += AddLines(2);
-            AddLines(5, numLines);
-            DrawLine("d", "white", "black");
-            DisplayMessage("", true, false);
-        }
-        public static void GameShowIntro(string description, string intro)
-        {
-            Clear();
-            int numLines = DrawMultiLineBox("s", description, "yellow", "black", "white", "black", "centre", "centre", 60);
-            numLines += AddLines(2);
-            intro = intro.PadLeft(((windowWidth - intro.Length) / 2) + intro.Length);
-            intro = intro.PadRight(windowWidth);
-            numLines += Teletype(intro, 20, "black", "red");
-            AddLines(5, numLines);
-            DrawLine("d", "white", "black");
-            DisplayMessage("", true, false);
         }
         #endregion
     }
